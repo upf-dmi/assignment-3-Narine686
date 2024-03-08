@@ -1,24 +1,108 @@
 ---
-title: "dummy title"
-author: "dummy name (dummy@mail.com)"
+title: "Assignment 3"
+author: "Edgar Chacón (edgarpedro.chacon01@estudiant.upf.edu)<br>
+         Judit Roca (judit.roca03@estudiant.upf.edu)<br>
+         Narine Fischer (narine.fischer01@estudiant.upf.edu)"
 date: "Last update: `r format(Sys.time(), '%d %B, %Y')`"      
 output:
   html_document:
     toc: true
+    toc_float: true
     fig_caption: true
 ---
 
-```{r setup, include=FALSE}
+<style>
+#TOC .list-group-item.active, .list-group-item.active:focus {
+    color: #ffffff !important;
+    background-color: #90A430;
+    transition: background-color 0.5s;
+}
+#TOC .list-group-item.active:hover {
+    color: #ffffff !important;
+    background-color: #8830A4;
+}
+#TOC .list-group-item.active .accent {
+    color: inherit !important;
+}
+a {
+  color: #90A430; 
+  transition: color 0.5s;  
+}
+
+a:hover {
+  color: #8830A4; 
+}
+a:visited {
+  color: #90A430;
+}
+a:visited:hover {
+  color: #8830A4;
+}
+.our {
+  color: #8830A4; 
+}
+.accent {
+  color: #90A430; 
+}
+
+</style>
+
+```{r SETUP, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
+<br>
 
-# Exercise 1
+# <span class="accent">0.</span> Introduction
 
-[Stamey et al. 1989](https://www.auajournals.org/doi/10.1016/S0022-5347%2817%2941175-X) examined the correlation between the level of prostate-specific antigen (PSA) and a number of clinical measures in men who were about to receive a radical prostatectomy. PSA is a protein that is produced by the prostate gland. The higher a man’s PSA level, the more likely it is that he has prostate cancer.  
-Use the [prostate cancer dataset](data/prostate_data.txt), described [here](data/prostate_description.txt),  to train a model that predicts log of prostate-specific antigen. 
-The variables are    
+This file corresponds to the third assignment of the "<span class="our">Data Mining and Data Integration in Biomedicine</span> (<b class="accent">DMI</b>)" subject of the "<span class="our">Master in Bioinformatics for the health sciences</span>" at "<span class="our">Pompeu Fabra University</span> (<b class="accent">UPF</b>)".
+<br>
+<br>
+Along this file, our comments will be highlighted in "<span class="our">purple</span>", in order to distinguish them from other statements. 
 
+## <span class="accent">0.1.</span> Libraries
+
+Libraries used in this R markdown.
+```{r 0.1.LIBRARIES, message=FALSE, warning=FALSE}
+# ---------------------------------------------------------------------LIBRARIES
+
+if (!require(readr)) install.packages("readr")
+if (!require(dplyr)) install.packages("dplyr")
+if (!require(car)) install.packages("car")
+if (!require(leaps)) install.packages("leaps")
+if (!require(tidymodels)) install.packages("tidymodels")
+if (!require(corrplot)) install.packages("corrplot")
+if (!require(class)) install.packages("class")
+if (!require(gmodels)) install.packages("gmodels")
+if (!require(rpart)) install.packages("rpart")
+if (!require(rpart.plot)) install.packages("rpart.plot")
+if (!require(pROC)) install.packages("pROC")
+if (!require(randomForest)) install.packages("randomForest")
+if (!require(caret)) install.packages("caret")
+if (!require(ggcorrplot)) install.packages("ggcorrplot")
+if (!require(glmnet)) install.packages("glmnet")
+if (!require(class)) install.packages("class")
+```
+
+## <span class="accent">0.2.</span> Colors
+
+Color variables used in this R markdown.
+```{r 0.2.COLORS}
+# ------------------------------------------------------------------------COLORS
+
+color1 <- c("#8830A4")
+color2 <- c("#90A430")
+corplot_colors <- c("#8830A4", "white", "#90A430")
+```
+
+<br>
+
+# <span class="accent">1.</span> Exercise 1
+
+#### [Stamey et al. 1989](https://www.auajournals.org/doi/10.1016/S0022-5347%2817%2941175-X) examined the correlation between the level of prostate-specific antigen (PSA) and a number of clinical measures in men who were about to receive a radical prostatectomy. PSA is a protein that is produced by the prostate gland. The higher a man’s PSA level, the more likely it is that he has prostate cancer.  
+#### Use the [prostate cancer dataset](data/prostate_data.txt), described [here](data/prostate_description.txt),  to train a model that predicts log of prostate-specific antigen. 
+
+#### The variables are:    
 - log cancer volume (lcavol)  
 - log prostate weight (lweight)  
 - age  
@@ -27,59 +111,1291 @@ The variables are
 - log of capsular penetration (lcp)  
 - Gleason score (gleason)    
 - percent of Gleason scores 4 or 5 (pgg45)  
+<br>
 
-You can ignore column named "train" and do your own data splitting.  
-Do not forget to perform feature selection!   
-You can use as examples the [Linear Regression Lab](https://hastie.su.domains/ISLR2/Labs/Rmarkdown_Notebooks/Ch3-linreg-lab.html) and the section related to feature selection from  [Lab: Linear Models and Regularization Methods
-](https://hastie.su.domains/ISLR2/Labs/Rmarkdown_Notebooks/Ch6-varselect-lab.html) from the book [An Introduction to Statistical Learning](https://www.statlearning.com/).
+#### You can ignore column named "train" and do your own data splitting.  
+#### Do not forget to perform feature selection! 
+<br>
+
+#### You can use as examples the [Linear Regression Lab](https://hastie.su.domains/ISLR2/Labs/Rmarkdown_Notebooks/Ch3-linreg-lab.html) and the section related to feature selection from  [Lab: Linear Models and Regularization Methods](https://hastie.su.domains/ISLR2/Labs/Rmarkdown_Notebooks/Ch6-varselect-lab.html) from the book [An Introduction to Statistical Learning](https://www.statlearning.com/).
 
 
-```{r}
+## <span class="accent">1.1.</span> Data preparation
 
+<span class="our">
+First, we upload our dataset of prostate cancer data. 
+<br>
+Additionally we use the `str()` function to display the data type and structure of each column of the dataset.
+</span>
+```{r 1.1. PROSTATE CANCER DATASET UPLOADING}
+# ---------------------------------------------PROSTATE CANCER DATASET UPLOADING
+
+prostate_data <- read_delim("./data/prostate_data.txt", delim = "\t", escape_double = FALSE, show_col_types = FALSE, trim_ws = TRUE)
+
+prostate_data <- as.data.frame(prostate_data)
+str(prostate_data)
 ```
 
+<br>
+<span class="our">
+We delete the column named "...1" of the prostate dataset, as it only includes row numbers as information.
+</span>
+```{r 1.1. PROSTATE DATASET CLEANNING}
+# ---------------------------------------------PROSTATE CANCER DATASET CLEANNING
 
-# Exercise 2
+prostate_data <- prostate_data %>% dplyr::select(-(...1)) 
+```
 
-Use the [breast cancer dataset](data/breat_cancer_data.csv) to train a model that predicts whether a future tumor image (with unknown diagnosis) is a benign or malignant tumor. Try different machine learning algorithms such as:   
+## <span class="accent">1.2.</span> Model creation
+
+<span class="our">
+Now, we create the subsets for training and testing the model.
+</span>
+```{r 1.2. TRAINING & TESTING DATASETS CREATION}
+# ------------------------------------------TRAINING & TESTING DATASETS CREATION
+
+training_dataset <- prostate_data %>% filter(train==TRUE) %>% select(-(train))
+
+testing_dataset <- prostate_data%>% filter(train==FALSE)%>%select(-(train))
+```
+
+<br>
+<span class="our">
+
+</span>
+```{r 1.2. CORRELATION MATRIX, message=FALSE, warning=FALSE}
+# ------------------------------------------------------------CORRELATION MATRIX
+
+pairs(training_dataset,col=color1)
+
+cor_training_dataset <- cor(training_dataset)
+
+write.table(cor_training_dataset, file = "temp_cor_matrix.txt", sep = "\t", quote = FALSE)
+
+cor_matrix <- read.table("temp_cor_matrix.txt", header = TRUE)
+cor_matrix
+
+file.remove("temp_cor_matrix.txt")
+```
+
+<span class="our">
+The basic information of the linear model created is summarized in the above table. 
+<br>
+`lcavol` variable appears as the most important one. Other variables like `lweight`, `lbph` and `svi` are also appear as significant ones. 
+<br>
+It is considered a reduced model which only includes the significant variables mentioned previously. 
+</span>
+```{r 1.2. CORRELATION PLOT}
+# --------------------------------------------------------------CORRELATION PLOT
+
+corr <- round(cor(training_dataset, use="complete.obs"), 2)
+options(repr.plot.width=14, repr.plot.height=14)
+ggcorrplot(corr, lab = TRUE, colors = corplot_colors, 
+           show.legend = F, outline.color = "gray", type = "upper", #hc.order = T,  
+           lab_size = 3, sig.level = .2) +
+  labs(fill = "Correlation")
+```
+
+<span class="our">
+As we can see, there are several important correlations between variables such as `lcavol` with `lpsa` or `gleason` with `pgg45` (both with correlation values over 70%).
+<br>
+Now, we define the training predictors to train our model to be able to predict `lpsa`.
+</span>
+```{r 1.2. SETTING PREDICTORS & DATA SCALING}
+# ---------------------------------------------SETTING PREDICTORS & DATA SCALING
+
+training_predictors <- prostate_data %>% filter(train==TRUE)%>%select(-c(train, lpsa))
+
+testing_predictors <- prostate_data %>% filter(train==FALSE)%>%select(-c(train, lpsa))
+
+training_predictors_scale <- as.data.frame(scale(training_predictors))
+```
+
+<span class="our">
+Once the data is scaled, we can add the `lpsa` values in order to create the machine learning model.
+</span>
+```{r 1.2. REDEFINING THE PROSTATE CANCER DATASET}
+# ----------------------------------------REDEFINING THE PROSTATE CANCER DATASET
+
+training_dataset <- data.frame(training_dataset$lpsa,training_predictors_scale)
+
+testing_predictors_scale <- as.data.frame(scale(testing_predictors))
+
+testing_dataset <- data.frame(testing_dataset$lpsa,testing_predictors_scale)
+```
+
+## <span class="accent">1.3.</span> Multiple linear regression model
+
+<span class="our">
+To fit a multiple linear regression model we use least squares, using the `lm()` function.
+<br>
+Then, summarized the data to obtain the regression coefficients for all the predictors.
+</span>
+```{r 1.3. MULTIPLE LINEAR REGRESION MODEL 1}
+# ---------------------------------------------MULTIPLE LINEAR REGRESION MODEL 1
+
+lm.fit <- lm(training_dataset.lpsa ~ . , data = training_dataset)
+
+summary(lm.fit)
+```
+
+<span class="our">
+We generate the residuals plot for this model.
+</span>
+```{r 1.3. RESIDUALS PLOTS MODEL 1}
+# -------------------------------------------------------RESIDUALS PLOTS MODEL 1
+
+par(mfrow = c(2, 2))
+plot(lm.fit)
+```
+
+<span class="our">
+In order to calculate the Residual Sum of Squares (RSS) for the training dataset it is used the predict function.
+</span>
+```{r 1.3. SUM OF SQUARES MODEL 1}
+# --------------------------------------------------------SUM OF SQUARES MODEL 1
+
+predictions <- predict(lm.fit, newdata=data.frame(training_dataset))
+
+Res_sum_sq_1 <- sum((predictions-training_dataset$training_dataset.lpsa)^2)
+```
+
+<span class="our">
+In order to have a better prediction of `lpsa` we generate a new model with less variables, the ones that were significant in the previous model : `lcavol`, `lweight`, `lbph` and `svi`.
+</span>
+
+```{r 1.3. REGRESION MODEL 2}
+# -----------------MODEL REDUCED (MODEL 2) INCLUDING ONLY SIGNIFICANT PREDICTORS
+
+lm.fit_reduced <- lm(training_dataset.lpsa~lcavol+lweight+lbph+svi,data=training_dataset)
+
+summary(lm.fit_reduced)
+```
+<span class="our">
+We generate the residuals plot for the reduced  model.
+</span>
+```{r 1.3. RESIDUALS PLOTS MODEL 2}
+# -------------------------------------------------------RESIDUALS PLOTS MODEL 2
+
+par(mfrow = c(2, 2))
+plot(lm.fit_reduced)
+```
+
+<span class="our">
+Predictions are generated using the linear model reduced on the subset "training_dataset". 
+<br>
+The Residual Sum of Squares (RSS) is also calculated by comparing the predicted values with the actual values from the training data (measuring the difference between the predicted and actual values, squared and summed). 
+</span>
+
+```{r 1.3. SUM OF SQUARES MODEL 2}
+# --------------------------------------------------------SUM OF SQUARES MODEL 2
+
+predictions_reduced <- predict(lm.fit_reduced, newdata = data.frame(training_dataset))
+
+Res_sum_sq_0 <- sum((predictions_reduced-training_dataset$training_dataset.lpsa)^2)
+
+print(paste("RSS of model 2 is:", Res_sum_sq_0))
+print(paste("RSS of model 1 was:", Res_sum_sq_1))
+```
+
+<span class="our">
+Finally we perform an ANOVA test to compare both models.
+</span>
+```{r 1.3. COMPARISON BETWEEN MODELS (ANOVA)}
+# ---------------------------------------------COMPARISON BETWEEN MODELS (ANOVA)
+
+anova_result <- anova(lm.fit_reduced, lm.fit)
+print(anova_result)
+```
+
+<span class="our">
+The p-value obtained is 0.1693, we might not have enough evidence to reject the null hypothesis. Therefore, we cannot reject the smaller reduced model. 
+<br>
+<br>
+The next step is working with the reduced model. 
+</span>
+```{r 1.3. RSS}
+# ---------------------------------------------------------------------------RSS
+
+test_prediction <- predict(lm.fit_reduced,newdata=data.frame(testing_dataset))
+
+Res_sum_sq_test <- sum((test_prediction-testing_dataset$testing_dataset.lpsa)^2)
+
+cat("RSS on test data:", Res_sum_sq_test, "\n")
+```
+
+<span class="our">
+Finally, we plot a graph comparing the predicted `lpsa` values with the actual values.  
+</span>
+```{r 1.3. TESTING THE MODEL USING THE REDUCED ONE}
+# ---------------------------------------TESTING THE MODEL USING THE REDUCED ONE
+
+comparison_data <- data.frame(Actual = testing_dataset$testing_dataset.lpsa, Predicted = test_prediction)
+
+ggplot(comparison_data, aes(x = Actual, y = Predicted)) +
+  geom_point(color = color2, alpha = 0.7) +
+  geom_abline(intercept = 0, slope = 1, linetype = "dashed", color = color1) +
+  labs(title = "Test Predictions vs. Actual Values",
+       x = "Actual lpsa Values",
+       y = "Predicted lpsa Values") +
+  theme_minimal()
+```
+
+<span class="our">
+So, we can conclude that our predicted values are majorly similar to the actual ones because the dots in the graph are near the central line.
+</span>
+
+<br>
+
+# <span class="accent">2.</span> Exercise 2
+
+#### Use the [breast cancer dataset](data/breat_cancer_data.csv) to train a model that predicts whether a future tumor image (with unknown diagnosis) is a benign or malignant tumor. 
+#### Try different machine learning algorithms such as:   
 - KNNs  
 - Decision trees  
 - Random forest  
 - Logistic Regression  
+<br>
 
-The breast cancer dataset contains digitized breast cancer image features, and was created by [Dr. William H. Wolberg, W. Nick Street, and Olvi L. Mangasarian](https://archive.ics.uci.edu/ml/datasets/Breast+Cancer+Wisconsin+%28Diagnostic%29). Each row in the data set represents an image of a tumor sample, including the diagnosis (benign or malignant) and several other measurements (nucleus texture, perimeter, area, and more). Diagnosis for each image was conducted by physicians.
+#### The breast cancer dataset contains digitized breast cancer image features, and was created by [Dr. William H. Wolberg, W. Nick Street, and Olvi L. Mangasarian](https://archive.ics.uci.edu/ml/datasets/Breast+Cancer+Wisconsin+%28Diagnostic%29). Each row in the data set represents an image of a tumor sample, including the diagnosis (benign or malignant) and several other measurements (nucleus texture, perimeter, area, and more). Diagnosis for each image was conducted by physicians.
+#### Do not forget to perform hyperparameter tuning!   
+<br>
 
-Do not forget to perform hyperparameter tuning!   
-Which of all models performs better for this data? Discuss.  
+#### You can use as a guide the analysis of this dataset included in the [chapter 5](https://datasciencebook.ca/classification1.html) of the Data Science, A First Introduction Book.
+#### Additionally, for further information and ideas, you can check [this post](https://www.rebeccabarter.com/blog/2020-03-25_machine_learning/).
 
-Generate a ROC curve for all the models. 
+## <span class="accent">2.1.</span> Data preparation
 
-You can use as a guide the analysis of this dataset included in the [chapter 5](https://datasciencebook.ca/classification1.html) of the Data Science, A First Introduction Book.
-Additionally, for further information and ideas, you can check [this post](https://www.rebeccabarter.com/blog/2020-03-25_machine_learning/)
+<span class="our">
+First of all, we upload our dataset of breast cancer data. 
+<br>
+Additionally we use the `str()` function to display the data type and structure of each column of the dataset.
+</span>
+```{r 2.1. BREAST DATASET UPLOADING}
+# ------------------------------------------------------BREAST DATASET UPLOADING
 
+breast_data <- read_delim("./data/breat_cancer_data.csv", delim = ",", escape_double = FALSE, show_col_types = FALSE, trim_ws = TRUE)
+
+breast_data <- as.data.frame(breast_data)
+str(breast_data)
+```
+
+<br>
+<span class="our">
+We delete the last column of the dataset because no information is included and it generated parsing issues.
+</span>
+```{r 2.1. DATASET CLEANNING}
+# -------------------------------------------------------------DATASET CLEANNING
+
+breast_data <- breast_data[, !colnames(breast_data) %in% "...33"]
+```
+
+<br>
+<span class="our">
+We then fix some column names in order to not contain spaces.
+</span>
+```{r 2.1. DATASET COLNAME FIXING}
+# --------------------------------------------------------DATASET COLNAME FIXING
+
+colnames(breast_data) <- sub(" ", "_", colnames(breast_data))
+```
+
+<br>
+<span class="our">
+We generate a table with the content of the diagnosis column. The variable diagnosis is of particular interest because it is the outcome we want to predict. This feature indicates whether the example is from a benign or malignant mass. 
+</span>
+```{r 2.1. DIAGNOSIS CONTENT TABLE}
+# -------------------------------------------------------DIAGNOSIS CONTENT TABLE
+
+table(breast_data$diagnosis)
+```
+
+<br>
+<span class="our">
+The table generated indicates that 356 masses are benign while 212 are malignant. 
+<br>
+We recode the diagnosis variable, because many machine learning classifiers require it to be a factor. 
+<br>
+Also, we give to the "`B`" and "`M`" values their complete label name. 
+</span>
+```{r 2.1. RECODED DIAGNOSIS COLUMN}
+# ------------------------------------------------------RECODED DIAGNOSIS COLUMN
+
+breast_data$diagnosis <- factor(breast_data$diagnosis, levels = c("B", "M"),
+labels = c("Benign", "Malignant"))
+round(prop.table(table(breast_data$diagnosis)) * 100, digits = 1)
+```
+
+<br>
+<span class="our">
+We then show the counts of the Diagnosis column as a plot. 
+</span>
+```{r 2.1. DIAGNOSIS PLOT, fig.align='center'}
+# ----------------------------------------------------------------DIAGNOSIS PLOT
+
+values <- c("Malignant", "Benign")
+
+ggplot(breast_data, aes(x = factor(diagnosis, levels = values), fill = diagnosis)) +
+  geom_bar(position = "dodge") +
+  scale_fill_manual(values = c(color2, color1), name = "Diagnosis") +  # Added legend title
+  ggtitle("Distribution of Diagnosis in the Breast Cancer Dataset") +
+  theme_minimal() +
+  geom_text(stat = "count", aes(label = after_stat(count)), position = position_dodge(width = 0.9), vjust = -0.5, color = "black") +
+  scale_x_discrete(labels = values) +
+  labs(x = "Diagnosis", y = "Count") +  # Used labs() to set x and y axis labels
+  theme(legend.position = "top", plot.title = element_text(hjust = 0.5)) 
+```
+
+<br>
+<span class="our">
+Looking at the output tables and figure, we can see that we have 62.7 percent of benign masses (n=356) and 37.3 percent of malignant masses (n=212).
+<br>
+Now, we set the rownames as the content of the `column id`, and delete this column later on.
+Also, we generate a summary of the `diagnosis` column and the numeric data (the rest of columns that are not `diagnosis`).
+</span>
+```{r 2.1. BREAST CANCER DATA SUMMARY}
+# ----------------------------------------------------BREAST CANCER DATA SUMMARY
+
+rownames(breast_data) <- breast_data$id
+breast_data <- breast_data[, -which(names(breast_data) == "id")]
+
+summary(breast_data)
+```
+
+<br>
+<span class="our">
+We want to see the correlation between all independent variables.
+</span>
+```{r 2.1. BREAST CANCER DATA CORRELATION PLOT, fig.height=12, fig.width=12, fig.align='center'}
+# -------------------------------------------BREAST CANCER DATA CORRELATION PLOT
+
+corr <- round(cor(breast_data[,-1], use="complete.obs"), 2)
+options(repr.plot.width=14, repr.plot.height=14)
+ggcorrplot(corr, lab = TRUE, colors = corplot_colors, 
+           show.legend = F, outline.color = "gray", type = "upper", #hc.order = T,  
+           lab_size = 3, sig.level = .2) +
+  labs(fill = "Correlation")
+```
+
+<br>
+<span class="our">
+As an example, we can see in this correlation plot that the `area`, `perimeter` and `radius` are very correlated between `worst` and `mean` and between each other inside `worst` and `mean`.
+<br>
+But we want to make sure which are the most correlated variables to remove them in order to avoid multicollinearity.
+<br>
+To do so, we check which variables are the most highly correlated.
+</span>
 ```{r}
+# ------------------------------------------CHECKING HIGHLY CORRELATED VARIABLES
+
+multicollinearity <- subset (breast_data, select = -c(diagnosis))
+multicollinearity_cor <- cor(multicollinearity) 
+
+highlyCorrelated = findCorrelation(multicollinearity_cor, cutoff=0.7)
+highlyCorCol = colnames(multicollinearity) [highlyCorrelated]
+highlyCorCol
+```
+
+<span class="our">
+Those highly correlated variables will be removed from a dataset later on (Note from the future: it's in the logistic regression dataset).
+<br>
+For the data preparation and to create the training, test and validation datasets, the best results from empirical studies are obtained using 20-30 % of testing and validation data and 70-80 % of training data.
+<br>
+For this study, we decided to adopt a strategy that involves using 10% of the entire dataset for validation. 
+<br>
+Subsequently, from the remaining 90% of the data, we further split it into 25% for testing data and 75% for training.
+<br>
+This distribution aims to strike a balance between ensuring model robustness, allowing for comprehensive training, and evaluating performance on unseen data.
+</span>
+```{r}
+# --------------------------------------------------------------DATA PREPARATION
+
+# The following command sets the seed for the random number generator to ensure reproducibility. 
+set.seed(123)
+
+# Generate a TRUE/FALSE vector for validation set
+sample_validation <- sample(c(TRUE, FALSE), size = nrow(breast_data), replace = TRUE, prob = c(0.10, 0.90))
+breast_data_validation <- breast_data[sample_validation,]
+
+# The remaining data is used for training and testing
+breast_data_test_training <- breast_data[!sample_validation,]
+
+
+#It is generated a TRUE/FALSE vector in order to split the dataset into train and test samples. 
+sample <- sample(c(TRUE, FALSE), size = nrow(breast_data_test_training), replace = TRUE, prob = c(0.25, 0.75))
+breast_data_train <- breast_data_test_training[!sample,]
+breast_data_test <- breast_data_test_training[sample,]
+
+
+#In order to train the KNN model, factor vectors are created to store the class labels previously generated. 
+breast_data_train_labels <- breast_data_test_training[!sample, 1]    #Extracting training data
+breast_data_test_labels <- breast_data_test_training[sample, 1]  #Extracting test data
+```
+
+<span class="our">
+Now we normalize the numeric columns of the dataset.
+</span>
+```{r}
+# ------------------------------------------------NORMALIZING BREAST CANCER DATA
+
+normalize <- function(x) {
+return ((x - min(x)) / (max(x) - min(x)))}   #creating a normalize() function
+
+breast_data_train_norm <- as.data.frame(lapply(breast_data_train[2:31], normalize))
+rownames(breast_data_train_norm) <- rownames(breast_data_train)
+
+breast_data_test_norm <- as.data.frame(lapply(breast_data_test[2:31], normalize))
+rownames(breast_data_test_norm) <- rownames(breast_data_test)
+
+breast_data_validation_norm <- as.data.frame(lapply(breast_data_validation[2:31], normalize))
+rownames(breast_data_validation_norm) <- rownames(breast_data_validation)
+```
+
+<span class="our">
+Once the data is normalized, the diagnosis column is re-included.
+</span>
+```{r}
+# ------------------REINTRODUCTION OF DIAGNOSIS TO NORMALIZED BREAST CANCER DATA
+
+breast_data_train_complete <- cbind(breast_data_train$diagnosis, breast_data_train_norm)
+colnames(breast_data_train_complete)[1] <- "diagnosis"
+
+breast_data_test_complete <- cbind(breast_data_test$diagnosis, breast_data_test_norm)
+colnames(breast_data_test_complete)[1] <- "diagnosis"
+
+breast_data_validation_complete <- cbind(breast_data_validation$diagnosis, breast_data_validation_norm)
+colnames(breast_data_validation_complete)[1] <- "diagnosis"
+```
+
+
+## <span class="accent">2.2.</span> KNN algorithm
+
+<span class="our">
+We create the training, testing and validation datasets for the KNN algorithm. 
+They are exactly the same datasets as the training, validation and test datasets previously generated, but with its name adapted to this section.
+</span>
+```{r 2.5. TRAIN & TEST KNN DATASET PREPARATION}
+# ------------------------------------------TRAIN & TEST KNN DATASET PREPARATION
+
+breast_data_train_knn <- breast_data_train_complete
+breast_data_test_knn <- breast_data_test_complete
+breast_data_validation_knn <- breast_data_validation_complete
+```
+
+
+<span class="our">
+In order to perform KNN algorithm, it is used knn() function. As k integer (the hyperparameter of the KNN algorithm), indicating the number of nearest neighbors, it is used the result number from the best k generated by comparing 20 random k values. knn() function is returning a factor vector of predicted labels for each of the observations included in the test data, it is called "knn_prediction".
+<br>
+Then, it is performed an evaluation of the model generated.
+<br>
+The model is evaluated by means of CrossTable() function which is included in gmodels library, it is using the best k generated.
+</span>
+```{r KNN ALGORITHM, EVALUATION OF THE MODEL, message=FALSE}
+# ----------------------------------------KNN ALGORITHM, EVALUATION OF THE MODEL
+
+#Set seed for reproducibility
+set.seed(123)
+
+# Specify the number of random k-values to try
+num_random_k <- 20
+
+# Create an empty data frame to store results
+results_df <- data.frame(k_value = numeric(), AUC = numeric(), selected = logical())
+
+# Iterate over random k-values
+for (i in 1:num_random_k) {
+  # Generate a random value for k (adjust the range as needed)
+  random_k <- sample(2:30, 1)
+
+  # Train KNN model with the random k value
+  knn_prediction <- knn(train = breast_data_train_knn[, -1],
+                        test = breast_data_test_knn[, -1],
+                        cl = breast_data_train_knn$diagnosis, 
+                        k = random_k)
+
+  # Evaluate model using performance metrics
+  AUC_knn <- tryCatch(
+    pROC::roc(as.numeric(breast_data_test_knn$diagnosis), as.numeric(knn_prediction)),
+    error = function(e) {
+      warning("Error calculating AUC for k =", random_k)
+      return(NULL)
+    }
+  )
+
+  # Store results in the data frame
+  results_df <- rbind(results_df, data.frame(k_value = random_k,
+                                              AUC = ifelse(!is.null(AUC_knn), AUC_knn$auc, NA),
+                                              selected = NA))
+}
+
+# Choose the best k based on AUC
+best_k <- results_df$k_value[which.max(results_df$AUC)]
+
+# Update the 'selected' column
+results_df$selected <- results_df$k_value == best_k
+
+# Print the results data frame
+print(results_df)
+
+# Print the best k
+cat("Best k based on AUC:", best_k, "\n")
+
+#Training KNN model with the best k value
+best_knn_prediction <- knn(train = breast_data_train_knn[, -1],
+                            test = breast_data_test_knn[, -1],
+                            cl = breast_data_train_knn$diagnosis, 
+                            k = best_k)
+
+#Creating a cross-table
+cross_table_result <- CrossTable(x = breast_data_test_labels, 
+                                 y = best_knn_prediction,
+                                 prop.chisq = FALSE)
+```
+
+<span class="our">
+We have 138 observations which indicated the total number of instances in our test dataset. 
+<br>
+The KNN model shows a strong ability to predict benign cases with a sensitivity of 100%. However, it appears that the model encounters some challenges in accurately identifying cases that might be malignants, with a specificity of 88.5%. <br>
+Overall, the model's accuracy is 60.9%, and the error rate is 39.1%.
+<br>
+<br>
+<b>Conclusion of KNN model</b>: the KNN model does a pretty good job at spotting cases that are likely benign. However, it could use some tweaks to get better at figuring out cases that might be malignant.
+</span>
+<br>
+
+## <span class="accent">2.3.</span> Decision Tree algorithm
+
+<span class="our">
+In order to not overfit the training data, and to control the complexity of the tree, we generated a combination of "minsplit" and "maxdepth" pairs of parameters to find the optimal one. We represented it in a table and applied it to the final tree plot. 
+<br>
+The criterion used to select the best tree parameters is based on the Area Under the ROC Curve (AUC). The code iterates over different combinations of "minsplit" and "maxdepth" values, trains a decision tree for each combination, and calculates the AUC on both the training and test datasets. The decision tree parameters with the highest AUC values on the training dataset are considered the best. The final selected parameters are those that yield the highest AUC on the training dataset across all iterations.
+</span>
+<br>
+<br>
+<span class="our">
+We create the training, testing and validation datasets for the Decision Tree algorithm. 
+They are exactly the same datasets as the training, validation and test datasets previously generated, but with its name adapted to this section.
+</span>
+```{r 2.3. TRAIN & TEST TREE DATASET PREPARATION}
+# -----------------------------------------TRAIN & TEST TREE DATASET PREPARATION
+
+breast_data_train_tree <- breast_data_train_complete
+breast_data_test_tree <- breast_data_test_complete
+breast_data_validation_tree <- breast_data_validation_complete
+```
+
+<br>
+
+```{r 2.3. DECISION TREE ALGORITHM PARAMETER SELECTION, message=FALSE, warning=FALSE}
+# -----------------------------------DECISION TREE ALGORITHM PARAMETER SELECTION
+
+# Finding the ideal values for minsplit and maxdepth
+AUC_train_besttree <- 0
+AUC_test_besttree <- 0
+best_tree_parameters <- data.frame(minsplit_para = NA, maxdepth_para = NA)
+
+set.seed(3011)
+tree_parameters <- data.frame(minsplit_para = floor(runif(10, 10, 60)), 
+                              maxdepth_para = floor(runif(10, 10, 30)))
+
+# Create an empty data frame to store AUC values along with minsplit and maxdepth
+AUC_tree <- data.frame(minsplit_para = numeric(), maxdepth_para = numeric(),
+                        AUC_train_tree = numeric(), AUC_test_tree = numeric(),
+                        selected = logical())
+
+for(para_comb in 1:nrow(tree_parameters)){
+  decision_tree <- rpart(diagnosis ~ .,  data = breast_data_train_tree,
+                      control = rpart.control(minsplit = tree_parameters[para_comb, "minsplit_para"], 
+                                              maxdepth = tree_parameters[para_comb, "maxdepth_para"])) 
+  
+  pred_train_tree <- as.numeric(predict(decision_tree, breast_data_train_tree, type='vector'))
+  AUC_train_tree <- pROC::roc(as.numeric(breast_data_train_tree$diagnosis), pred_train_tree)
+  
+  pred_test_tree <- as.numeric(predict(decision_tree, breast_data_test_tree, type='vector'))
+  AUC_test_tree <- pROC::roc(as.numeric(breast_data_test_tree$diagnosis), pred_test_tree)
+
+  AUC_train_besttree <- ifelse(AUC_train_besttree > AUC_train_tree$auc, AUC_train_besttree, AUC_train_tree$auc)
+  AUC_test_besttree <- ifelse(AUC_test_besttree > AUC_test_tree$auc, AUC_test_besttree, AUC_test_tree$auc)
+  
+  # Update best_tree_parameters if a better combination is found
+  if (AUC_train_tree$auc == AUC_train_besttree && AUC_test_tree$auc == AUC_test_besttree) {
+    best_tree_parameters$minsplit_para <- tree_parameters[para_comb, "minsplit_para"]
+    best_tree_parameters$maxdepth_para <- tree_parameters[para_comb, "maxdepth_para"]
+  }
+  
+  # Store minsplit, maxdepth, and AUC values in the AUC_tree data frame
+  AUC_tree[para_comb, ] <- c(tree_parameters[para_comb, ], 
+                             round(AUC_train_tree$auc, 4), 
+                             round(AUC_test_tree$auc, 4),
+                             selected = identical(best_tree_parameters, tree_parameters[para_comb, ]))
+}
+
+# Print the AUC_tree data frame with highlighting
+print(AUC_tree)
+```
+
+<br>
+<span class="our">
+Now we use the best hyperparameters found to build the final decision tree model.
+</span>
+```{r  2.3. DECISION TREE ALGORITHM, fig.height=8, fig.width=12, fig.align='center'}
+
+# -------------------------------------------------------DECISION TREE ALGORITHM
+
+
+
+# Using the best parameters to train the final decision tree
+final_decision_tree <- rpart(diagnosis ~ ., data = breast_data_train_tree,
+                             control = rpart.control(minsplit = best_tree_parameters$minsplit_para, 
+                                                     maxdepth = best_tree_parameters$maxdepth_para))
+
+# Visualizing the final decision tree
+#prp(final_decision_tree)
+box_colors <- ifelse(final_decision_tree$frame$yval == 1, color2, color1)
+
+rpart.plot(final_decision_tree, extra = 104, nn = TRUE, shadow.col="gray90", box.col = box_colors, col = "white")
+```
+
+
+## <span class="accent">2.4.</span> Random Forest algorithm
+
+<span class="our">
+We create the training, testing and validation datasets for the Random Forest  algorithm. 
+They are exactly the same datasets as the training, validation and test datasets previously generated, but with its name adapted to this section.
+</span>
+```{r 2.4. TRAIN & TEST RANDOM FOREST DATASET PREPARATION}
+# --------------------------------TRAIN & TEST RANDOM FOREST DATASET PREPARATION
+
+breast_data_train_forest <- breast_data_train_complete
+breast_data_test_forest <- breast_data_test_complete
+breast_data_validation_forest <- breast_data_validation_complete
+```
+
+<br>
+
+```{r 2.4. RANDOM FOREST ALGORITHM PARAMETER SELECTION, message=FALSE, warning=FALSE}
+# -----------------------------------RANDOM FOREST ALGORITHM PARAMETER SELECTION
+
+# Set seed for reproducibility
+set.seed(3011)
+
+# Initialize variables
+AUC_train_bestforest <- 0
+AUC_test_bestforest <- 0
+best_forest_parameters <- data.frame(nodesize = NA, sampsize = NA, mtry = NA, ntree = NA)
+
+# Create random combinations of rf_parameters
+rf_parameters <- data.frame(nodesize = round(runif(10, 5, 20)),
+                            sampsize = round(runif(10, 1, 400)),
+                            mtry = round(runif(10, 1, 10)),
+                            ntree = round(runif(10, 1, 400)))
+
+# Create an empty data frame to store AUC values along with rf_parameters
+AUC_forest <- data.frame(nodesize = numeric(), sampsize = numeric(),
+                         mtry = numeric(), ntree = numeric(),
+                         AUC_train_forest = numeric(), AUC_test_forest = numeric(),
+                         selected = logical())
+
+for (para_comb in 1:nrow(rf_parameters)) {
+  # Build random forest model
+  random_forest <- randomForest(diagnosis ~ ., data = breast_data_train_forest,
+                                nodesize = rf_parameters[para_comb, "nodesize"],
+                                sampsize = rf_parameters[para_comb, "sampsize"],
+                                mtry = rf_parameters[para_comb, "mtry"],
+                                ntree = rf_parameters[para_comb, "ntree"])
+
+  # Predict on the training set
+  pred_train_forest <- as.numeric(predict(random_forest, breast_data_train_forest, type='response'))
+  AUC_train_forest <- pROC::roc(as.numeric(breast_data_train_forest$diagnosis), pred_train_forest)
+
+  # Predict on the test set
+  pred_test_forest <- as.numeric(predict(random_forest, breast_data_test_forest, type='response'))
+  AUC_test_forest <- pROC::roc(as.numeric(breast_data_test_forest$diagnosis), pred_test_forest)
+
+  # Update best_forest_parameters if a better combination is found
+  if (AUC_train_forest$auc > AUC_train_bestforest && AUC_test_forest$auc > AUC_test_bestforest) {
+    AUC_train_bestforest <- AUC_train_forest$auc
+    AUC_test_bestforest <- AUC_test_forest$auc
+    best_forest_parameters$nodesize <- rf_parameters[para_comb, "nodesize"]
+    best_forest_parameters$sampsize <- rf_parameters[para_comb, "sampsize"]
+    best_forest_parameters$mtry <- rf_parameters[para_comb, "mtry"]
+    best_forest_parameters$ntree <- rf_parameters[para_comb, "ntree"]
+  }
+
+  # Store rf_parameters and AUC values in the AUC_forest data frame
+  AUC_forest[para_comb, ] <- c(rf_parameters[para_comb, ], 
+                               round(AUC_train_forest$auc, 4), 
+                               round(AUC_test_forest$auc, 4),
+                               selected = identical(best_forest_parameters, rf_parameters[para_comb, ]))
+}
+
+# Print the AUC_forest data frame with highlighting
+print(AUC_forest)
+
+# Print the best_forest_parameters
+print(best_forest_parameters)
+```
+
+<br>
+<span class="our">
+Now we generate the random forest model using the best hyperparameters found in the previous section.
+</span>
+```{r, fig.height=8, fig.width=12, fig.align='center', warning=FALSE}
+
+# -------------------------------------------------------RANDOM FOREST ALGORITHM
+
+
+# Build the best random forest model based on the best_forest_parameters
+best_random_forest <- randomForest(diagnosis ~ ., data = breast_data_train_forest,
+                                   nodesize = best_forest_parameters$nodesize,
+                                   sampsize = best_forest_parameters$sampsize,
+                                   mtry = best_forest_parameters$mtry,
+                                   ntree = best_forest_parameters$ntree)
+
+# Plot variable importance
+varImpPlot(best_random_forest, main = "Variable Importance Plot")
+
+# Make predictions with the random forest model
+rf_predictions <- predict(best_random_forest, newdata = breast_data_validation_forest)
+
+# Create cross table
+cross_table_rf <- CrossTable(x = breast_data_validation_forest$diagnosis,
+                             y = rf_predictions,
+                             prop.chisq = FALSE)
+
+#printing the best parameters for the random forest model
+
+cat("Best Forest Parameters:\n")
+cat("Nodesize:", best_forest_parameters$nodesize, "\n")
+cat("Sampsize:", best_forest_parameters$sampsize, "\n")
+cat("Mtry:", best_forest_parameters$mtry, "\n")
+cat("Ntree:", best_forest_parameters$ntree, "\n")
 
 ```
 
-# Exercise 3  
 
-Use [The Cancer Genome Atlas (TCGA)](https://www.genome.gov/Funded-Programs-Projects/Cancer-Genome-Atlas) gene expression data of two different cancer types to build a machine learning model that identifies whether one unknown sample belongs to one or the other. The TCGA is a comprehensive and coordinated effort to accelerate our understanding of the molecular basis of cancer through the application of genome analysis technologies, including large-scale genome sequencing. The program has generated, analyzed, and made available genomic sequence, expression, methylation, and copy number variation data on over 11,000 individuals who represent over 30 different types of cancer. 
-After building your model, you should predict the cancer types for [10 unkwnon samples](data/unknwown_samples.tsv).  
+## <span class="accent">2.5.</span> Logistic Regression algorithm
 
-For this task, you should retrieve the TCGA data from the [Genomic Data Commons Data Portal](https://portal.gdc.cancer.gov/). If necessary you can watch the video uploaded in the Campus Global. The video assumes that you have previously installed the [GDC data transfer tool](https://gdc.cancer.gov/access-data/gdc-data-transfer-tool). 
+<span class="our">
+We create the training, testing and validation datasets for the Logistic Regression algorithm. 
+They are exactly the same datasets as the training, validation and test datasets previously generated, but with its name adapted to this section.
+</span>
+```{r 2.5. TRAIN & TEST LOGISTIC REGRESSION DATASET PREPARATION}
+# --------------------------TRAIN & TEST LOGISTIC REGRESSION DATASET PREPARATION
 
-Each team will work with two specific cancer types, that will be assigned in class.
+breast_data_train_logistic <- breast_data_train_complete
+breast_data_test_logistic <- breast_data_test_complete
+breast_data_validation_logistic <- breast_data_validation_complete
+```
 
-Important notice: if you do not have a lot of hard drive space in your laptop, you can modify the manifest file to download only 50 samples per cancer types. 
-As part of the assignment, you should provide the input data fed to the machine learning algorithm as a tsv file. 
-
-
+<span class="our">
+Now, we use the dataset without the highly correlated variables.
+</span>
 ```{r}
+# ------------------------------------------CHECKING HIGHLY CORRELATED VARIABLES
 
+breast_data_wo_highlyCor_train_logistic <- breast_data_train_logistic
+breast_data_wo_highlyCor_train_logistic <- breast_data_wo_highlyCor_train_logistic[, -which(colnames(breast_data_wo_highlyCor_train_logistic) %in% highlyCorCol)]
+breast_data_wo_highlyCor_train_logistic %>% head(5)
+```
+
+<span class="our">
+We generate the logistic regression model with the breast cancer dataset without the highly correlated variables.
+</span>
+```{r, warning=FALSE}
+# -----------------------------------------------------LOGISTIC REGRESSION MODEL
+
+logistic_model <- glm(formula = diagnosis ~ ., data = breast_data_wo_highlyCor_train_logistic, family = binomial() )
+summary (logistic_model)
+vif(logistic_model)
+```
+
+<span class="our">
+We can't see it here, but previously we generated this model without extracting the highly correlated variables, and the VIF results that we got were too large compared to what they should be (if they are higher than 5, they are considered highly correlated, but we got values in the order of thousands).
+</span>
+```{r}
+# ------------------------------------------EVALUATION LOGISTIC REGRESSION MODEL
+
+# Predictions on test data
+logistic_predictions <- predict(logistic_model, newdata = breast_data_test_logistic, type = "response")
+logistic_predictions_binary <- ifelse(logistic_predictions > 0.5, "Malignant", "Benign")
+
+# Confusion matrix
+conf_matrix <- table(Actual = breast_data_test_labels, Predicted = logistic_predictions_binary)
+
+# Calculate accuracy
+accuracy <- sum(diag(conf_matrix)) / sum(conf_matrix)
+
+CrossTable(x = breast_data_test_labels, y = logistic_predictions_binary, prop.chisq = FALSE)
+
+cat("Accuracy: ", round(accuracy, 3), "\n")
 ```
 
 
-# session info {.unnumbered}
+## <span class="accent">2.6.</span> Algorithm comparison
+
+<br>
+
+#### Which of all models performs better for this data? Discuss.
+#### Generate a ROC curve for all the models.
+
+<span class="our">
+Looking at the cross tables and at the following ROC curves for each algorithm, we can conclude that the best trained model is the logistic regression. It has a area under the curve of 98,9%. But the other algorithms were quite good too, because all of them got values of the area under the curve above 95%.
+</span>
+<br>
+<br>
+
+##### KNN
+```{r}
+# -----------------------------------------------------------------KNN ROC CURVE
+
+ROC_Knn <- roc(as.numeric(breast_data_test_knn$diagnosis), as.numeric(best_knn_prediction))
+
+plot(ROC_Knn, main = paste("KNN ROC Curve for k =", best_k), col = color1, percent = TRUE, plot = TRUE, print.auc = TRUE)
+
+abline(a = 0, b = 1, lty = 2, col = "gray")  # Diagonal line
+legend("bottomright", legend = paste("AUC =", round(auc(ROC_Knn), 4)), col = color1, lwd = 2)
+```
+
+<br>
+<br>
+
+##### DECISION TREE ROC CURVE
+```{r}
+# -------------------------------------------------------DECISION TREE ROC CURVE
+ROC_Tree <- predict(final_decision_tree, breast_data_validation_tree)
+
+ROC_Tree_plot <- roc(breast_data_validation_tree$diagnosis, main = paste("DECISION TREE ROC Curve"), col = color1, ROC_Tree[, 2], percent = FALSE, plot = TRUE, print.auc = TRUE)
+
+abline(a = 0, b = 1, lty = 2, col = "gray")  # Diagonal line
+legend("bottomright", legend = paste("AUC =", round(auc(ROC_Tree_plot), 4)), col = color1, lwd = 2)
+```
+
+<br>
+<br>
+
+##### RANDOM FOREST ROC CURVE
+```{r}
+# -------------------------------------------------------RANDOM FOREST ROC CURVE
+
+ROC_Forest <- roc(as.numeric(breast_data_validation_forest$diagnosis), as.numeric(rf_predictions))
+
+plot(ROC_Forest, main = "ROC Curve for Random Forest", col = color1, lwd = 2, percent = FALSE, plot = TRUE, print.auc = TRUE)
+
+abline(a = 0, b = 1, lty = 2, col = "gray")
+
+legend("bottomright", legend = paste("AUC =", round(auc(ROC_Forest), 4)), col = color1, lwd = 2)
+```
+
+<br>
+<br>
+
+##### LOGISTIC REGRESSION ROC CURVE
+```{r}
+# -------------------------------------------------LOGISTIC REGRESSION ROC CURVE
+
+ROC_Logistic <- roc(as.numeric(breast_data_test_labels == "Malignant"), as.numeric(logistic_predictions))
+
+plot(ROC_Logistic, main = "ROC Curve for Logistic Regression", col = color1, lwd = 2, percent = FALSE, plot = TRUE, print.auc = TRUE)
+
+abline(a = 0, b = 1, lty = 2, col = "gray")
+
+legend("bottomright", legend = paste("AUC =", round(auc(ROC_Logistic), 4)), col = color1, lwd = 2)
+```
+
+<br>
+
+# <span class="accent">3.</span> Exercise 3  
+
+#### Use [The Cancer Genome Atlas (TCGA)](https://www.genome.gov/Funded-Programs-Projects/Cancer-Genome-Atlas) gene expression data of two different cancer types to build a machine learning model that identifies whether one unknown sample belongs to one or the other. The TCGA is a comprehensive and coordinated effort to accelerate our understanding of the molecular basis of cancer through the application of genome analysis technologies, including large-scale genome sequencing. The program has generated, analyzed, and made available genomic sequence, expression, methylation, and copy number variation data on over 11,000 individuals who represent over 30 different types of cancer. 
+#### After building your model, you should predict the cancer types for [10 unkwnon samples](data/unknwown_samples.tsv).  
+<br>
+
+#### For this task, you should retrieve the TCGA data from the [Genomic Data Commons Data Portal](https://portal.gdc.cancer.gov/). If necessary you can watch the video uploaded in the Campus Global. The video assumes that you have previously installed the [GDC data transfer tool](https://gdc.cancer.gov/access-data/gdc-data-transfer-tool). 
+<br>
+
+#### Each team will work with two specific cancer types, that will be assigned in class.
+<br>
+
+#### Important notice: if you do not have a lot of hard drive space in your laptop, you can modify the manifest file to download only 50 samples per cancer types. 
+<br>
+
+#### As part of the assignment, you should provide the input data fed to the machine learning algorithm as a tsv file. 
+<br>
+<br>
+
+<span class="our">
+Our group was assigned the following types of cancer:
+<br>
+"<b>7- TCGA-BLCA - TCGA-LGG</b>"
+<br>
+<br>
+First of all we get the manifest of the first type of cancer we had assigned (TCGA-BLCA). To do so, we access the [Genomic Data Commons Data Portal](https://portal.gdc.cancer.gov/), where in the `Cohort builder` tab we select the `TCGA` program and the `TCGA-BLCA` project.
+<br>
+Then, in the `Repository` tab, we select the `RNA-Seq` experimental strategy, `transcriptome profiling` data category, `Gene Expression Quantification` data type and `open` access. Then we download the [manifest](./data/TCGA_data/gdc_manifest_BLCA.txt), that we edited to only contain 50 samples. 
+<br>
+<br>
+The we repeat the process with the other type of cancer we have (TCGA-LGG). We access the [Genomic Data Commons Data Portal](https://portal.gdc.cancer.gov/), where in the `Cohort builder` tab we select the `TCGA` program and the `TCGA-LGG` project.
+<br>
+Then, in the `Repository` tab, we select the `RNA-Seq` experimental strategy, `transcriptome profiling` data category, `Gene Expression Quantification` data type and `open` access. Then we download the [manifest](./data/TCGA_data/gdc_manifest_LGG.txt), that we edited to only contain 50 samples. 
+<br>
+<br>
+The manifest file is used by the [GDC data transfer tool](https://gdc.cancer.gov/access-data/gdc-data-transfer-tool) to download the cohort. 
+<br>
+In order to download the datasets with said tool, we used the terminal commands found in the [TCGA_Downloading_Commands](./data/TCGA_data/TCGA_Downloading_Commands.txt) file.
+<br>
+<br>
+The following bit of code is the one we used to merge all 50 samples downloaded of each cancer type.
+</span>
+```{r, echo=FALSE}
+#local_env <- new.env()
+
+#local({
+#  data_folder <- "./data/TCGA_data/BLCA"
+
+#  pattern <- "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$"
+#  subdirectories <- list.dirs(data_folder, full.names = TRUE, recursive = FALSE)
+#  tsv_folders <- subdirectories[grepl(pattern, basename(subdirectories))]
+
+#  output_file <- file.path(data_folder, "TCGA_BLCA_data.tsv")
+
+#  file_list <- list.files(path = tsv_folders, pattern = "\\.tsv$", recursive = TRUE, full.names = TRUE)
+
+#  writeLines(file_list, "./data/TCGA_data/BLCA/file_list.txt")
+  
+  # Terminal notifications
+#  if (length(file_list) == 0) {
+#    stop("No TSV files found in the specified subdirectories.")
+#  }
+
+  # First TSV file
+#  if (length(file_list) > 0) {
+#    first_file_path <- file_list[1]
+    
+#    first_file <- read.table(first_file_path, sep = "\t", header = TRUE, stringsAsFactors = FALSE)
+    
+#    total_lines_added <- 0
+#    total_lines <- 0
+    
+    # Append the content from row 7 to the last row of each remaining file
+#    for (i in seq_along(file_list[-1])) {
+#      file_path <- file_list[i]
+      
+      # Terminal notifications
+#      cat("Processing file", i, "of", length(file_list), ". Lines added:", total_lines_added, "\r")
+#      Sys.sleep(0.1)
+      
+#     if (file.exists(file_path)) {
+#        current_data <- read.table(file_path, sep = "\t", header = TRUE, stringsAsFactors = FALSE)
+#        current_data <- current_data[7:nrow(current_data), ]
+#        total_lines_added <- total_lines_added + nrow(current_data)
+#        total_lines <- total_lines + nrow(current_data)
+#        first_file <- rbind(first_file, current_data)
+#      } else {
+#         warning(paste("File not found:", file_path))
+#      }
+#    }
+
+#    write.table(first_file, file = output_file, sep = "\t", row.names = FALSE)
+    
+    # Terminal notifications
+#    cat("Processing complete. Merged data saved to", output_file, "\n")
+#  } else {
+#    stop("No TSV files found in the specified subdirectories.")
+#  }
+#})
+#rm(local_env)
+#local_env <- new.env()
+
+#local({
+#  data_folder <- "./data/TCGA_data/LGG"
+
+#  pattern <- "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$"
+#  subdirectories <- list.dirs(data_folder, full.names = TRUE, recursive = FALSE)
+#  tsv_folders <- subdirectories[grepl(pattern, basename(subdirectories))]
+
+#  output_file <- file.path(data_folder, "TCGA_LGG_data.tsv")
+
+#  file_list <- list.files(path = tsv_folders, pattern = "\\.tsv$", recursive = TRUE, full.names = TRUE)
+
+#  writeLines(file_list, "./data/TCGA_data/BLCA/file_list.txt")
+  
+  # Terminal notifications
+#  if (length(file_list) == 0) {
+#    stop("No TSV files found in the specified subdirectories.")
+#  }
+
+  # First TSV file
+#  if (length(file_list) > 0) {
+#    first_file_path <- file_list[1]
+    
+#    first_file <- read.table(first_file_path, sep = "\t", header = TRUE, stringsAsFactors = FALSE)
+    
+#    total_lines_added <- 0
+#    total_lines <- 0
+    
+    # Append the content from row 7 to the last row of each remaining file
+#    for (i in seq_along(file_list[-1])) {
+#      file_path <- file_list[i]
+      
+      # Terminal notifications
+#      cat("Processing file", i, "of", length(file_list), ". Lines added:", total_lines_added, "\r")
+#      Sys.sleep(0.1)
+      
+#      if (file.exists(file_path)) {
+#        current_data <- read.table(file_path, sep = "\t", header = TRUE, stringsAsFactors = FALSE)
+#        current_data <- current_data[7:nrow(current_data), ]
+#        total_lines_added <- total_lines_added + nrow(current_data)
+#       total_lines <- total_lines + nrow(current_data)
+#        first_file <- rbind(first_file, current_data)
+#      } else {
+#        warning(paste("File not found:", file_path))
+#      }
+#    }
+
+#    write.table(first_file, file = output_file, sep = "\t", row.names = FALSE)
+    
+    # Terminal notifications
+#    cat("Processing complete. Merged data saved to", output_file, "\n")
+#  } else {
+#    stop("No TSV files found in the specified subdirectories.")
+#  }
+#})
+#rm(local_env)
+```
+
+
+## <span class="accent">3.1.</span> Data preparation
+
+<span class="our">
+We upload our datasets for each type of cancer, and delete the rows without information (from 1 to 4).
+<br>
+Additionally we use the `str()` function to display the data type and structure of each column of the datasets.
+</span>
+```{r 3.1. TCGA DATASET UPLOADING}
+# ---------------------------------------------------TCGA-BLCA DATASET UPLOADING
+
+TCGA_BLCA_data <- read_delim("./data/TCGA_data/BLCA/TCGA_BLCA_data.tsv", delim = "\t", escape_double = FALSE, show_col_types = FALSE, trim_ws = TRUE)
+
+TCGA_BLCA_data <- as.data.frame(TCGA_BLCA_data)
+
+TCGA_BLCA_data <- TCGA_BLCA_data[-c(1:4), ]
+
+TCGA_BLCA_data <- TCGA_BLCA_data %>% mutate(gene_id = paste("BLCA_", gene_id, sep = ""))
+
+str(TCGA_BLCA_data)
+
+# ----------------------------------------------------TCGA-LGG DATASET UPLOADING
+
+TCGA_LGG_data <- read_delim("./data/TCGA_data/LGG/TCGA_LGG_data.tsv", delim = "\t", escape_double = FALSE, show_col_types = FALSE, trim_ws = TRUE)
+
+TCGA_LGG_data <- as.data.frame(TCGA_LGG_data)
+
+TCGA_LGG_data <- TCGA_LGG_data[-c(1:4), ]
+
+TCGA_LGG_data <- TCGA_LGG_data %>% mutate(gene_id = paste("LGG_", gene_id, sep = ""))
+
+str(TCGA_LGG_data)
+```
+
+<span class="our">
+We merge both datasets.
+</span>
+```{r 3.1. TCGA DATASET MERGING}
+# -----------------------------------------------------TCGA-BLCA DATASET MERGING
+
+TCGA_data <- bind_rows(
+  mutate(TCGA_BLCA_data, Tissue_Type = "BLCA"),  
+  mutate(TCGA_LGG_data, Tissue_Type = "LGG")     
+)
+```
+
+<span class="our">
+We remove rows that had the same `gene_id` (duplicates), and use the `gene_id` values as rownames.
+</span>
+```{r 3.1. TCGA DATASET MODIFYING}
+# --------------------------------------------------------TCGA DATASET MODIFYING
+
+TCGA_data <- TCGA_data %>%
+  distinct(gene_id, .keep_all = TRUE)
+
+rownames(TCGA_data) <- TCGA_data$gene_id
+TCGA_data <- TCGA_data[, -which(names(TCGA_data) == "gene_id")]
+
+str(TCGA_data)
+```
+
+## <span class="accent">3.2.</span> Model
+
+<span class="our">
+We create the validation, training and testing datasets for the Logistic Regression algorithm for the TCGA dataset. 
+They are exactly the same datasets as the training, validation and test datasets previously generated, but with its name adapted to this section.
+</span>
+```{r 3.1. TRAIN, TEST & VALIDATION TCGA DATASET PREPARATION}
+# -----------------------------TRAIN, TEST & VALIDATION TCGA DATASET PREPARATION
+
+# The following command sets the seed for the random number generator to ensure reproducibility. 
+set.seed(123)
+
+# Generate a TRUE/FALSE vector for validation set
+sample_TCGA_validation <- sample(c(TRUE, FALSE), size = nrow(TCGA_data), replace = TRUE, prob = c(0.10, 0.90))
+TCGA_data_validation <- TCGA_data[sample_TCGA_validation,]
+
+# The remaining data is used for training and testing
+TCGA_data_test_training <- TCGA_data[!sample_TCGA_validation,]
+
+
+#It is generated a TRUE/FALSE vector in order to split the dataset into train and test samples. 
+sample_TCGA <- sample(c(TRUE, FALSE), size = nrow(TCGA_data_test_training), replace = TRUE, prob = c(0.25, 0.75))
+TCGA_data_train <- TCGA_data_test_training[!sample_TCGA,]
+TCGA_data_test <- TCGA_data_test_training[sample_TCGA,]
+```
+
+<br>
+<span class="our">
+Then, we normalize the numeric data of the dataset.
+</span>
+```{r 3.1. NORMALIZING TCGA DATA}
+# ---------------------------------------------------------NORMALIZING TCGA DATA
+
+normalize <- function(x) {
+return ((x - min(x)) / (max(x) - min(x)))}   #creating a normalize() function
+
+TCGA_data_train_norm <- as.data.frame(lapply(TCGA_data_train[3:8], normalize))
+rownames(TCGA_data_train_norm) <- rownames(TCGA_data_train)
+
+TCGA_data_test_norm <- as.data.frame(lapply(TCGA_data_test[3:8], normalize))
+rownames(TCGA_data_test_norm) <- rownames(TCGA_data_test)
+
+TCGA_data_validation_norm <- as.data.frame(lapply(TCGA_data_validation[3:8], normalize))
+rownames(TCGA_data_validation_norm) <- rownames(TCGA_data_validation)
+```
+
+<span class="our">
+Once the data is normalized, the diagnosis column is re-included.
+</span>
+```{r 3.1. REINTRODUCTION OF TEXT COLS TO NORMALIZED TCGA DATA}
+# ---------------------------REINTRODUCTION OF TEXT COLS TO NORMALIZED TCGA DATA
+
+TCGA_data_train_complete <- cbind(TCGA_data_train$Tissue_Type, TCGA_data_train$gene_name, TCGA_data_train$gene_type, TCGA_data_train_norm)
+colnames(TCGA_data_train_complete)[1] <- "tissue_type"
+colnames(TCGA_data_train_complete)[2] <- "gene_name"
+colnames(TCGA_data_train_complete)[3] <- "gene_type"
+
+TCGA_data_test_complete <- cbind(TCGA_data_test$Tissue_Type, TCGA_data_test$gene_name, TCGA_data_test$gene_type, TCGA_data_test_norm)
+colnames(TCGA_data_test_complete)[1] <- "tissue_type"
+colnames(TCGA_data_test_complete)[2] <- "gene_name"
+colnames(TCGA_data_test_complete)[3] <- "gene_type"
+
+TCGA_data_validation_complete <- cbind(TCGA_data_validation$Tissue_Type, TCGA_data_validation$gene_name, TCGA_data_validation$gene_type, TCGA_data_validation_norm)
+colnames(TCGA_data_validation_complete)[1] <- "tissue_type"
+colnames(TCGA_data_validation_complete)[2] <- "gene_name"
+colnames(TCGA_data_validation_complete)[3] <- "gene_type"
+```
+
+<span class="our">
+Now, we use the dataset without the highly correlated variables.
+</span>
+```{r}
+# ------------------------------------------CHECKING HIGHLY CORRELATED VARIABLES
+
+TCGA_data_train_WO_genename_genetype <- TCGA_data_train_complete %>% select(-gene_name, -gene_type)
+TCGA_multicollinearity <- subset (TCGA_data_train_WO_genename_genetype, select = -c(tissue_type))
+TCGA_multicollinearity_cor <- cor(TCGA_multicollinearity) 
+
+TCGA_highlyCorrelated = findCorrelation(TCGA_multicollinearity_cor, cutoff=0.7)
+TCGA_highlyCorCol = colnames(TCGA_multicollinearity) [TCGA_highlyCorrelated]
+TCGA_highlyCorCol
+
+TCGA_data_wo_highlyCor_train <- TCGA_data_train_WO_genename_genetype
+TCGA_data_wo_highlyCor_train <- TCGA_data_wo_highlyCor_train[, -which(colnames(TCGA_data_wo_highlyCor_train) %in% TCGA_highlyCorCol)]
+
+TCGA_data_wo_highlyCor_train %>% head(5)
+```
+
+<span class="our">
+Then, because in the exercise 2 we got the best results with the logistic regression algorithm, we decided to use it in this case.
+<br>
+So, we performed the logistic regression model. 
+</span>
+```{r PERFORMING THE LOGISTIC REGRESSION MODEL, warning=FALSE}
+
+# -----------------------------------------FITTING THE LOGISTIC REGRESSION MODEL
+
+TCGA_data_train_WO_genename_genetype$tissue_type <- factor(TCGA_data_train_WO_genename_genetype$tissue_type)
+
+# Fit logistic regression model
+TCGA_logistic_model <- glm(formula = tissue_type ~ ., data = TCGA_data_train_WO_genename_genetype, family = binomial())
+
+# Display summary of the model
+summary(TCGA_logistic_model)
+
+# Check for multicollinearity using the vif function
+vif(TCGA_logistic_model)
+```
+
+<span class="our">
+The p-values indicate the significance of each predictor variable. A smaller p-value (<0.05) suggests that the predictor is associated with the response variable. The "fpkm_uq_unstranded" predictor variable appears highly statistically significant. 
+<br>
+We fitted the logistic regression model, but only using the variables `fpkm_uq_unstranded` and `tpm_unstranded`, because no relation was found in the rest.
+</span>
+```{r FITTING THE LOGISTIC REGRESSION MODEL ONLY WITH SIGNIFICANT PREDICTORS, }
+
+# --------FITTING THE LOGISTIC REGRESSION MODEL ONLY WITH SIGNIFICANT PREDICTORS
+
+# Fit logistic regression model with significant predictors
+selected_model <- glm(formula = tissue_type ~ fpkm_uq_unstranded + tpm_unstranded, 
+                       family = binomial(), 
+                       data = TCGA_data_train_WO_genename_genetype)
+
+# Display summary of the selected model
+summary(selected_model)
+```
+
+<span class="our">
+Finally, we perform an evaluation of the last model.
+</span>
+```{r EVALUATION LOGISTIC REGRESSION MODEL}
+# ------------------------------------------EVALUATION LOGISTIC REGRESSION MODEL
+
+# Predictions on test data
+TCGA_logistic_predictions <- predict(selected_model, newdata = TCGA_data_test_complete, type = "response")
+TCGA_logistic_predictions_binary <- ifelse(TCGA_logistic_predictions > 0.5, "LGG", "BLCA")
+
+# Confusion matrix
+TCGA_conf_matrix <- table(Actual = TCGA_data_test_complete$tissue_type, Predicted = TCGA_logistic_predictions_binary)
+
+# Calculate accuracy
+accuracy <- sum(diag(TCGA_conf_matrix)) / sum(TCGA_conf_matrix)
+
+CrossTable(x = TCGA_data_test_complete$tissue_type, y = TCGA_logistic_predictions_binary, prop.chisq = FALSE)
+
+cat("Accuracy:", round(accuracy, 3), "\n")
+```
+
+<span class="our">
+And generated a ROC curve.
+</span>
+```{r}
+# ------------------------------------------------------LOGISTIC MODEL ROC CURVE
+
+ROC_Logistic <- roc(as.numeric(TCGA_data_test_complete$tissue_type == "LGG"), as.numeric(TCGA_logistic_predictions))
+
+plot(ROC_Logistic, main = "ROC Curve for Logistic Regression", col = color1, lwd = 2, percent = FALSE, plot = TRUE, print.auc = TRUE)
+
+abline(a = 0, b = 1, lty = 2, col = "gray")
+
+legend("bottomright", legend = paste("AUC =", round(auc(ROC_Logistic), 4)), col = color1, lwd = 2)
+```
+
+<span class="our">
+The model AUC obtained is 0.878, which indicates that the logistic regression model has a good discriminatory ability. With AUC of 0.878, the model is demonstrating a strong ability to discriminate between the classses. 
+</span>
+
+<br>
+<br>
+
+# Session info {.unnumbered}
 
 ```{r, results='asis',  echo=FALSE, message=FALSE }
 sessionInfo()
